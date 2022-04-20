@@ -133,7 +133,11 @@ class MetricNN(nn.Module):
         nodes = [node.unsqueeze(1) for node in nodes]
         nodes = torch.cat(nodes, 1)
 
-        logits = self.gnn_obj(nodes).squeeze(-1)
+        logits, x_next, W_for_dirichle = self.gnn_obj(nodes) #flagflag
+        logits = logits.squeeze(-1)
+        #print ("this is the x after gnn_obj")
+        #print(x_next)
+
         outputs = F.sigmoid(logits)
 
         return outputs, logits

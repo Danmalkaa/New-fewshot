@@ -6,7 +6,7 @@ import torch
 import torch.nn.functional as F
 import torch.optim as optim
 from torch.autograd import Variable
-from data import generator
+from data.generator import Generator
 from utils import io_utils
 import models.models as models
 from test import test_one_shot
@@ -129,12 +129,12 @@ def train():
     io.cprint('Batch size: ' + str(args.batch_size))
 
     #Try to load models
-    enc_nn = load_model('enc_nn', args, io)
-    metric_nn = load_model('metric_nn', args, io)
+    enc_nn = models.load_model('enc_nn', args, io)
+    metric_nn = models.load_model('metric_nn', args, io)
 
     if enc_nn is None or metric_nn is None:
-        enc_nn, metric_nn = create_models(args=args)
-    softmax_module = SoftmaxModule()
+        enc_nn, metric_nn = models.create_models(args=args)
+    softmax_module = models.SoftmaxModule()
 
     if args.cuda:
         enc_nn.cuda()
