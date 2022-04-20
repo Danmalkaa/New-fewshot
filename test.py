@@ -42,7 +42,7 @@ def test_one_shot(args, model, test_samples=5000, partition='test'):
         zi_s = [enc_nn(batch_xi)[-1] for batch_xi in xi_s]
 
         # Compute metric from embeddings
-        output, out_logits = metric_nn(inputs=[z, zi_s, labels_yi, oracles_yi, hidden_labels])
+        output, out_logits, x_next, W_for_dirichle = metric_nn(inputs=[z, zi_s, labels_yi, oracles_yi, hidden_labels])
         output = out_logits
         y_pred = softmax_module.forward(output)
         y_pred = y_pred.data.cpu().numpy()
