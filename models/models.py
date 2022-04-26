@@ -120,7 +120,7 @@ class MetricNN(nn.Module):
         else:
             raise NotImplementedError
 
-    def gnn_iclr_forward(self, z, zi_s, labels_yi):
+    def gnn_iclr_forward(self, z, zi_s, labels_yi, with_dirichlet=False):
         # Creating WW matrix
         zero_pad = Variable(torch.zeros(labels_yi[0].size()))
         if self.args.cuda:
@@ -139,8 +139,10 @@ class MetricNN(nn.Module):
         #print(x_next)
 
         outputs = F.sigmoid(logits)
-
-        return outputs, logits
+        if with_dirichlet:
+            return outputs, logits, x_next, W_for_dirichle
+        else:
+            return outputs, logits
 
     def gnn_iclr_active_forward(self, z, zi_s, labels_yi, oracles_yi, hidden_layers):
         # Creating WW matrix
@@ -166,12 +168,17 @@ class MetricNN(nn.Module):
 
     def forward(self, inputs):
         '''input: [batch_x, [batches_xi], [labels_yi]]'''
-        [z, zi_s, labels_yi, oracles_yi, hidden_labels] = inputs
+        if len(inputs) == 6:
+            [z, zi_s, labels_yi, oracles_yi, hidden_labels, with_dirichlet_flag] = inputs
+            with_dirichlet = with_dirichlet_flag
+        else:
+            [z, zi_s, labels_yi, oracles_yi, hidden_labels] = inputs
+            with_dirichlet = False
 
         if 'gnn_iclr_active' in self.metric_network:
            return self.gnn_iclr_active_forward(z, zi_s, labels_yi, oracles_yi, hidden_labels)
         elif 'gnn_iclr' in self.metric_network:
-            return self.gnn_iclr_forward(z, zi_s, labels_yi)
+            return self.gnn_iclr_forward(z, zi_s, labels_yi, with_dirichlet)
         else:
             raise NotImplementedError
 

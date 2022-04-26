@@ -128,9 +128,10 @@ def train():
     train_loader = Generator(args.dataset_root, args, partition='train', dataset=args.dataset)
     io.cprint('Batch size: ' + str(args.batch_size))
 
-    #Try to load models
-    enc_nn = models.load_model('enc_nn', args, io)
-    metric_nn = models.load_model('metric_nn', args, io)
+    #Try to load models # todo: comment
+    enc_nn, metric_nn = None, None
+    # enc_nn = models.load_model('enc_nn', args, io)
+    # metric_nn = models.load_model('metric_nn', args, io)
 
     if enc_nn is None or metric_nn is None:
         enc_nn, metric_nn = models.create_models(args=args)
