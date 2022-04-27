@@ -15,6 +15,235 @@ else:
     dtype_l = torch.cuda.LongTensor
 
 
+
+# class PDE_GCN(nn.Module): # Our GConv
+#     def __init__(self, nf_input, nf_output, J, bn_bool=True):
+#         super(PDE_GCN, self).__init__()
+#         stdv = 1e-2
+#         self.K1Nopen = nn.Parameter(torch.randn(nf_input, nNin) * stdv)
+#         self.K2Nopen = nn.Parameter(torch.randn(nf_input, nf_input) * stdv)
+#         self.KNclose = nn.Parameter(torch.randn(num_output, nopen) * stdv)  # num_output on left size
+#
+#         self.KN1 = nn.Parameter(torch.rand(nlayer, Nfeatures, nhid) * stdvp)
+#         rrnd = torch.rand(nlayer, Nfeatures, nhid) * (1e-3)
+#         self.KN1 = nn.Parameter(identityInit(self.KN1) + rrnd)
+#
+#         self.alpha = nn.Parameter(-0 * torch.ones(1, 1))
+#
+#         self.KN2 = nn.Parameter(torch.rand(nlayer, nhid, 1 * nhid) * stdvp)
+#         self.KN2 = nn.Parameter(identityInit(self.KN2))
+#
+#         self.J = J #TODO:FIX
+#         self.num_inputs = J*nf_input #TODO:FIX
+#         self.num_outputs = nf_output #TODO:FIX
+#         self.fc = nn.Linear(self.num_inputs, self.num_outputs) #TODO:FIX
+#
+#         self.bn_bool = bn_bool #TODO:FIX
+#         if self.bn_bool: #TODO:FIX
+#             self.bn = nn.BatchNorm1d(self.num_outputs) #TODO:FIX
+#
+#     def forward(self, input):
+#         gradX = self.grad(input) #TODO: FIX
+#         gradX = self.drop(gradX)
+#         dxn = self.finalDoubleLayer(gradX, self.KN1[i], self.KN2[i])
+#         dxn = self.edgeDiv(dxn)
+#
+#         tmp_xn = xn.clone()
+#         beta = F.sigmoid(self.alpha)
+#         alpha = 1 - beta
+#         alpha = alpha / self.h
+#         beta = beta / (self.h ** 2)
+#
+#         xn = (2 * beta * xn - beta * xn_old + alpha * xn - dxn) / (beta + alpha)
+#         xn_old = tmp_xn
+#
+#         W = input[0]  #TODO: FIX
+#         x = gmul(input) # out has size (bs, N, num_inputs) #TODO: FIX
+#         #if self.J == 1:
+#         #    x = torch.abs(x)
+#         x_size = x.size() #TODO: FIX
+#         x = x.contiguous() #TODO: FIX
+#         x = x.view(-1, self.num_inputs) #TODO: FIX
+#         x = self.fc(x) # has size (bs*N, num_outputs) #TODO: FIX
+#
+#         if self.bn_bool: #TODO: FIX
+#             x = self.bn(x)
+#
+#         x = x.view(*x_size[:-1], self.num_outputs) #TODO: FIX
+#
+#
+#         return W, x
+
+    def conv1(X, Kernel):
+        return F.conv1d(X, Kernel, padding=int((Kernel.shape[-1] - 1) / 2))
+
+    def identityInit(tensor):
+        I = torch.eye(tensor.shape[1], tensor.shape[2]).unsqueeze(0)
+        II = torch.repeat_interleave(I, repeats=tensor.shape[0], dim=0)
+        return II
+
+    def nodeGrad(self, x, W=[]): # insert our Weight Matrix to W
+        if len(W) == 0:
+            W = self.W
+        if W.shape[0] == x.shape[2]:
+            # if its degree matrix
+            g = W[self.iInd] * (x[:, :, self.iInd] - x[:, :, self.jInd])
+        else:
+            g = W * (x[:, :, self.iInd] - x[:, :, self.jInd])
+
+        # W2 = torch.transpose(W1, 1, 2) #size: bs x N x N x num_features
+        # W_new = torch.abs(W1 - W2) #size: bs x N x N x num_features
+        # W_new = torch.transpose(W_new, 1, 3) #size: bs x num_features x N x N
+
+
+        return g
+
+    def edgeConv(xe, K, groups=1):
+        if xe.dim() == 4:
+            if K.dim() == 2:
+                xe = F.conv2d(xe, K.unsqueeze(-1).unsqueeze(-1), groups=groups)
+            else:
+                xe = conv2(xe, K, groups=groups)
+        elif xe.dim() == 3:
+            if K.dim() == 2:
+                xe = F.conv1d(xe, K.unsqueeze(-1), groups=groups)
+            else:
+                xe = conv1(xe, K, groups=groups)
+        return xe
+
+    def singleLayer(self, x, K, groups=1):
+        # if K.shape[0] != K.shape[1]:
+        x = self.edgeConv(x, K, groups=groups)
+        x = F.relu(x)
+        return x
+
+    def edgeDiv(self, g, W=[]):
+        if len(W) == 0:
+            W = self.W
+        x = torch.zeros(g.shape[0], g.shape[1], self.nnodes, device=g.device)
+        # z = torch.zeros(g.shape[0],g.shape[1],self.nnodes,device=g.device)
+        # for i in range(self.iInd.numel()):
+        #    x[:,:,self.iInd[i]]  += w*g[:,:,i]
+        # for j in range(self.jInd.numel()):
+        #    x[:,:,self.jInd[j]] -= w*g[:,:,j]
+        if W.shape[0] != g.shape[2]:
+            x.index_add_(2, self.iInd, W[self.iInd] * g)
+            x.index_add_(2, self.iInd, W[self.jInd] * g)
+        else:
+            x.index_add_(2, self.iInd, W * g)
+            x.index_add_(2, self.jInd, -W * g)
+
+    def finalDoubleLayer(self, x, K1, K2): # taken from PDE-GCN
+        x = F.tanh(x)
+        x = self.edgeConv(x, K1)
+        x = F.tanh(x)
+        x = self.edgeConv(x, K2)
+        x = F.tanh(x)
+        x = self.edgeConv(x, K2.t())
+        x = F.tanh(x)
+        x = self.edgeConv(x, K1.t())
+        x = F.tanh(x)
+        return x
+
+class PDE_GCN(nn.Module): #
+    def __init__(self, args, input_features, nf, J):
+        super(PDE_GCN, self).__init__()
+        self.args = args
+        self.input_features = input_features
+        self.nf = nf
+        self.J = J
+        self.num_layers = 6  # TODO: change to 2 - here we change the number of layers
+
+        self.dropout = 0.3 # TODO: Change
+        stdv = 1e-2
+        stdvp = 1e-2
+
+        self.K1Nopen = nn.Parameter(torch.randn(input_features, input_features) * stdv)
+        self.K2Nopen = nn.Parameter(torch.randn(input_features, input_features) * stdv)
+        self.KNclose = nn.Parameter(torch.randn(args.train_N_way, input_features) * stdv)  # num_output on left size
+
+        self.KN1 = nn.Parameter(torch.rand(self.num_layers, input_features, input_features) * stdvp)
+        rrnd = torch.rand(self.num_layers, input_features, input_features) * (1e-3)
+        self.KN1 = nn.Parameter(identityInit(self.KN1) + rrnd)
+
+        self.alpha = nn.Parameter(-0 * torch.ones(1, 1))
+
+        self.KN2 = nn.Parameter(torch.rand(self.num_layers, input_features, input_features) * stdvp)
+        self.KN2 = nn.Parameter(identityInit(self.KN2))
+
+        for i in range(self.num_layers):
+            if i >= 1:  #changed
+                flag1 = 0
+                flag2 = 1
+            else:
+                flag1 = 1
+                flag2 = 0
+            module_w = Wcompute(flag1 * self.input_features + flag2 * int(nf / 2),
+                                flag1 * self.input_features + flag2 * int(nf / 2), operator='J2', activation='softmax',
+                                ratio=[2, 1.5, 1, 1], drop=False)
+            # module_l = Gconv(flag1 * self.input_features + int(nf / 2) * flag2, int(nf / 2), 2)  #changed
+            self.add_module('layer_w{}'.format(i), module_w)
+            # self.add_module('layer_l{}'.format(i), module_l)
+
+        #self.w_comp_last = Wcompute(self.input_features + int(self.nf / 2)*self.num_layers,
+        #                           self.input_features + int(self.nf / 2) * (self.num_layers - 1), #changed
+        #                          operator='J2', activation='softmax', ratio=[2, 1.5, 1, 1], drop=True)
+        #self.layer_last = Gconv(self.input_features + int(self.nf / 2) * self.num_layers, args.train_N_way, 2, bn_bool=True) #changed
+        self.w_comp_last = Wcompute(int(self.nf / 2),  #this is the last layer without concatenating
+                                    int(self.nf / 2),  #changed
+                                    operator='J2', activation='softmax', ratio=[2, 1.5, 1, 1], drop=True)
+        self.layer_last = Gconv(int(self.nf / 2), args.train_N_way, 2, bn_bool=True)  #changed
+
+        def forward(self, x):
+            W_init = Variable(torch.eye(x.size(1)).unsqueeze(0).repeat(x.size(0), 1, 1).unsqueeze(3))
+            if self.args.cuda:
+                W_init = W_init.cuda()
+
+            if self.args.cuda:
+                x = x.cuda()
+
+            xn = F.dropout(x, p=self.dropout)
+            xn = self.singleLayer(xn, self.K1Nopen)  # First Layer
+            x0 = xn.clone()
+            xn_old = x0
+
+            for i in range(self.num_layers):
+                Wi = self._modules['layer_w{}'.format(i)](xn, W_init)  #changed
+                #print("Wi.size: ", Wi.size())
+                #print("Wi: ", Wi[0,:,:,1])
+
+                gradX = self.grad(input, W=Wi)  #TODO: FIX # insert our Weight Matrix to W
+                gradX = self.drop(gradX)
+                dxn = self.finalDoubleLayer(gradX, self.KN1[i], self.KN2[i])
+                dxn = self.edgeDiv(dxn)
+
+                tmp_xn = xn.clone()
+                beta = F.sigmoid(self.alpha)
+                alpha = 1 - beta
+                alpha = alpha / self.h
+                beta = beta / (self.h ** 2)
+
+                xn = (2 * beta * xn - beta * xn_old + alpha * xn - dxn) / (beta + alpha)
+                xn_old = tmp_xn
+
+            xn = F.dropout(xn, p=self.dropout, training=self.training)
+            xn = F.conv1d(xn, self.KNclose.unsqueeze(-1))
+
+            xn = xn.squeeze().t()
+
+            Wl = self.w_comp_last(xn, W_init)  #changed
+            #print("Wl.size", Wl.size())
+            #print("Wl: ", Wl[0,:,:,1])
+            out = self.layer_last([Wl, xn])[1]  #changed # TODO: FIX
+            #print("out.size", out.size())
+            #print("this is the x before sending to models")
+            #print(x_next)
+
+            return out[:, 0, :], xn, Wl
+
+
+
+
 def gmul(input):
     W, x = input
     # x is a tensor of size (bs, N, num_features)
@@ -135,7 +364,7 @@ class Wcompute(nn.Module):
         return W_new
 
 
-class GNN_nl_omniglot(nn.Module):
+class GNN_nl_omniglot(nn.Module): # Todo: Change name to Naive and uncomment Regular GNN
     def __init__(self, args, input_features, nf, J):
         super(GNN_nl_omniglot, self).__init__()
         self.args = args
@@ -196,6 +425,70 @@ class GNN_nl_omniglot(nn.Module):
         #print(x_next)
 
         return out[:, 0, :], x_next, Wl
+
+class GNN_PDE_GCN_omniglot(nn.Module):
+    def __init__(self, args, input_features, nf, J):
+        super(GNN_PDE_GCN_omniglot, self).__init__()
+        self.args = args
+        self.input_features = input_features
+        self.nf = nf
+        self.J = J
+
+        self.num_layers = 6  # TODO: change to 2 - here we change the number of layers
+        for i in range(self.num_layers):
+            if i >= 1:  #changed
+                flag1 = 0
+                flag2 = 1
+            else:
+                flag1 = 1
+                flag2 = 0
+            module_w = Wcompute(flag1 * self.input_features + flag2 * int(nf / 2),
+                                flag1 * self.input_features + flag2 * int(nf / 2), operator='J2', activation='softmax',
+                                ratio=[2, 1.5, 1, 1], drop=False)
+            module_l = Gconv(flag1 * self.input_features + int(nf / 2) * flag2, int(nf / 2), 2)  #changed
+            self.add_module('layer_w{}'.format(i), module_w)
+            self.add_module('layer_l{}'.format(i), module_l)
+
+        #self.w_comp_last = Wcompute(self.input_features + int(self.nf / 2)*self.num_layers,
+        #                           self.input_features + int(self.nf / 2) * (self.num_layers - 1), #changed
+        #                          operator='J2', activation='softmax', ratio=[2, 1.5, 1, 1], drop=True)
+        #self.layer_last = Gconv(self.input_features + int(self.nf / 2) * self.num_layers, args.train_N_way, 2, bn_bool=True) #changed
+        self.w_comp_last = Wcompute(int(self.nf / 2),  #this is the last layer without concatenating
+                                    int(self.nf / 2),  #changed
+                                    operator='J2', activation='softmax', ratio=[2, 1.5, 1, 1], drop=True)
+        self.layer_last = Gconv(int(self.nf / 2), args.train_N_way, 2, bn_bool=True)  #changed
+
+    def forward(self, x):
+        W_init = Variable(torch.eye(x.size(1)).unsqueeze(0).repeat(x.size(0), 1, 1).unsqueeze(3))
+        if self.args.cuda:
+            W_init = W_init.cuda()
+
+        x_next = x  #changed
+        if self.args.cuda:
+            x_next = x_next.cuda()
+
+        for i in range(self.num_layers):
+            Wi = self._modules['layer_w{}'.format(i)](x_next, W_init)  #changed
+            #print("Wi.size: ", Wi.size())
+            #print("Wi: ", Wi[0,:,:,1])
+
+            x_new = F.leaky_relu(self._modules['layer_l{}'.format(i)]([Wi, x_next])[1])  #changed
+            x_next = x_new  #changed  #print("x next.size", x_next.size())  #x = torch.cat([x, x_new], 2)
+
+        # if self.args.cuda:
+        #    x_next = x_next.cuda()
+
+        Wl = self.w_comp_last(x_next, W_init)  #changed
+        #print("Wl.size", Wl.size())
+        #print("Wl: ", Wl[0,:,:,1])
+        out = self.layer_last([Wl, x_next])[1]  #changed
+        #print("out.size", out.size())
+        #print("this is the x before sending to models")
+        #print(x_next)
+
+        return out[:, 0, :], x_next, Wl
+
+
 
 # class GNN_nl_omniglot(nn.Module):
 #     def __init__(self, args, input_features, nf, J):
