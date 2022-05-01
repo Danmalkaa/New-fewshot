@@ -2,6 +2,7 @@
 # -*- coding: UTF-8 -*-
 
 # Pytorch requirements
+import numpy as np
 import torch
 import torch.nn as nn
 from torch.autograd import Variable
@@ -74,41 +75,51 @@ else:
 #
 #         return W, x
 
-    def conv1(X, Kernel):
-        return F.conv1d(X, Kernel, padding=int((Kernel.shape[-1] - 1) / 2))
-
     def identityInit(tensor):
         I = torch.eye(tensor.shape[1], tensor.shape[2]).unsqueeze(0)
         II = torch.repeat_interleave(I, repeats=tensor.shape[0], dim=0)
         return II
 
+class PDE_GCN(nn.Module): #
+
+    def conv1(X, Kernel):
+        return F.conv1d(X, Kernel, padding=int((Kernel.shape[-1] - 1) / 2))
+
+
     def nodeGrad(self, x, W=[]): # insert our Weight Matrix to W
         if len(W) == 0:
             W = self.W
-        if W.shape[0] == x.shape[2]:
-            # if its degree matrix
-            g = W[self.iInd] * (x[:, :, self.iInd] - x[:, :, self.jInd])
-        else:
-            g = W * (x[:, :, self.iInd] - x[:, :, self.jInd])
+
+        if x.dim() == 3 :
+        # has Batch
+            g = W[:,:,:,1].unsqueeze(1) * (x.unsqueeze(2) - x.unsqueeze(3))
+
+        if x.dim() == 2 :
+        # no Batch dim
+            g = W[:,:,:,1].unsqueeze(1)* (x.unsqueeze(1) - x.unsqueeze(2))
+        # if W.shape[0] == x.shape[2]:
+        #     # if its degree matrix
+        #     g = W[self.iInd] * (x[:, :, self.iInd] - x[:, :, self.jInd])
+        # else:
+        #     g = W * (x[:, :, self.iInd] - x[:, :, self.jInd])
+
 
         # W2 = torch.transpose(W1, 1, 2) #size: bs x N x N x num_features
         # W_new = torch.abs(W1 - W2) #size: bs x N x N x num_features
         # W_new = torch.transpose(W_new, 1, 3) #size: bs x num_features x N x N
-
-
         return g
 
-    def edgeConv(xe, K, groups=1):
-        if xe.dim() == 4:
-            if K.dim() == 2:
-                xe = F.conv2d(xe, K.unsqueeze(-1).unsqueeze(-1), groups=groups)
-            else:
-                xe = conv2(xe, K, groups=groups)
-        elif xe.dim() == 3:
+    def edgeConv(self, xe, K, groups=1):
+        # if xe.dim() == 4:
+        #     if K.dim() == 2:
+        #         xe = F.conv2d(xe, K.unsqueeze(-1).unsqueeze(-1), groups=groups)
+        #     else:
+        #         xe = conv2(xe, K, groups=groups)
+        if xe.dim() == 3:
             if K.dim() == 2:
                 xe = F.conv1d(xe, K.unsqueeze(-1), groups=groups)
-            else:
-                xe = conv1(xe, K, groups=groups)
+            # else:
+                # xe = conv1(xe, K, groups=groups)
         return xe
 
     def singleLayer(self, x, K, groups=1):
@@ -117,21 +128,24 @@ else:
         x = F.relu(x)
         return x
 
-    def edgeDiv(self, g, W=[]):
-        if len(W) == 0:
+    def edgeDiv(self, g, W=[]): #TODO - Second LOOK
+        if len(W) == 0: # TODO: Decide if W or Ones_MAT
             W = self.W
-        x = torch.zeros(g.shape[0], g.shape[1], self.nnodes, device=g.device)
+        # x = torch.zeros(g.shape[0], g.shape[1], self.nnodes, device=g.device) # [5,64,5]
+        x = torch.sum((W[:, :, :, 1].unsqueeze(1) * g), dim=2)    # TODO: Double-Check
         # z = torch.zeros(g.shape[0],g.shape[1],self.nnodes,device=g.device)
         # for i in range(self.iInd.numel()):
         #    x[:,:,self.iInd[i]]  += w*g[:,:,i]
         # for j in range(self.jInd.numel()):
         #    x[:,:,self.jInd[j]] -= w*g[:,:,j]
-        if W.shape[0] != g.shape[2]:
-            x.index_add_(2, self.iInd, W[self.iInd] * g)
-            x.index_add_(2, self.iInd, W[self.jInd] * g)
-        else:
-            x.index_add_(2, self.iInd, W * g)
-            x.index_add_(2, self.jInd, -W * g)
+        # if W.shape[0] != g.shape[2]:
+        #     x.index_add_(2, self.iInd, W[self.iInd] * g)
+        #     x.index_add_(2, self.iInd, W[self.jInd] * g)
+        # else:
+        #     x.index_add_(2, self.iInd, W * g)
+        #     x.index_add_(2, self.jInd, -W * g)
+
+        return x
 
     def finalDoubleLayer(self, x, K1, K2): # taken from PDE-GCN
         x = F.tanh(x)
@@ -145,22 +159,23 @@ else:
         x = F.tanh(x)
         return x
 
-class PDE_GCN(nn.Module): #
     def __init__(self, args, input_features, nf, J):
         super(PDE_GCN, self).__init__()
         self.args = args
+        self.nnodes = args.train_N_way * args.train_N_shots + 1 # 1 for the unknown sample
         self.input_features = input_features
         self.nf = nf
         self.J = J
         self.num_layers = 6  # TODO: change to 2 - here we change the number of layers
 
         self.dropout = 0.3 # TODO: Change
+        self.h = torch.rand(1)
         stdv = 1e-2
         stdvp = 1e-2
 
         self.K1Nopen = nn.Parameter(torch.randn(input_features, input_features) * stdv)
         self.K2Nopen = nn.Parameter(torch.randn(input_features, input_features) * stdv)
-        self.KNclose = nn.Parameter(torch.randn(args.train_N_way, input_features) * stdv)  # num_output on left size
+        self.KNclose = nn.Parameter(torch.randn(args.train_N_way * args.train_N_shots + 1 , input_features) * stdv)  # num_output on left size
 
         self.KN1 = nn.Parameter(torch.rand(self.num_layers, input_features, input_features) * stdvp)
         rrnd = torch.rand(self.num_layers, input_features, input_features) * (1e-3)
@@ -171,13 +186,14 @@ class PDE_GCN(nn.Module): #
         self.KN2 = nn.Parameter(torch.rand(self.num_layers, input_features, input_features) * stdvp)
         self.KN2 = nn.Parameter(identityInit(self.KN2))
 
+        flag1,flag2 = 1, 0
         for i in range(self.num_layers):
-            if i >= 1:  #changed
-                flag1 = 0
-                flag2 = 1
-            else:
-                flag1 = 1
-                flag2 = 0
+            # if i >= 1:  #changed
+            #     flag1 = 0
+            #     flag2 = 1
+            # else:
+            #     flag1 = 1
+            #     flag2 = 0
             module_w = Wcompute(flag1 * self.input_features + flag2 * int(nf / 2),
                                 flag1 * self.input_features + flag2 * int(nf / 2), operator='J2', activation='softmax',
                                 ratio=[2, 1.5, 1, 1], drop=False)
@@ -189,57 +205,67 @@ class PDE_GCN(nn.Module): #
         #                           self.input_features + int(self.nf / 2) * (self.num_layers - 1), #changed
         #                          operator='J2', activation='softmax', ratio=[2, 1.5, 1, 1], drop=True)
         #self.layer_last = Gconv(self.input_features + int(self.nf / 2) * self.num_layers, args.train_N_way, 2, bn_bool=True) #changed
-        self.w_comp_last = Wcompute(int(self.nf / 2),  #this is the last layer without concatenating
-                                    int(self.nf / 2),  #changed
+        self.w_comp_last = Wcompute(int(self.nf / 2)+1,  #this is the last layer without concatenating
+                                    int(self.nf / 2)+1,  #changed
                                     operator='J2', activation='softmax', ratio=[2, 1.5, 1, 1], drop=True)
-        self.layer_last = Gconv(int(self.nf / 2), args.train_N_way, 2, bn_bool=True)  #changed
+        # self.layer_last = Gconv(int(self.nf / 2), args.train_N_way, 2, bn_bool=True)  #changed
 
-        def forward(self, x):
-            W_init = Variable(torch.eye(x.size(1)).unsqueeze(0).repeat(x.size(0), 1, 1).unsqueeze(3))
-            if self.args.cuda:
-                W_init = W_init.cuda()
 
-            if self.args.cuda:
-                x = x.cuda()
 
-            xn = F.dropout(x, p=self.dropout)
-            xn = self.singleLayer(xn, self.K1Nopen)  # First Layer
-            x0 = xn.clone()
-            xn_old = x0
+    def forward(self, x):
+        # x = [B,N,C]
+        W_init = Variable(torch.eye(x.size(1)).unsqueeze(0).repeat(x.size(0), 1, 1).unsqueeze(3))
+        if self.args.cuda:
+            W_init = W_init.cuda()
 
-            for i in range(self.num_layers):
-                Wi = self._modules['layer_w{}'.format(i)](xn, W_init)  #changed
-                #print("Wi.size: ", Wi.size())
-                #print("Wi: ", Wi[0,:,:,1])
+        if self.args.cuda:
+            x = x.cuda()
 
-                gradX = self.grad(input, W=Wi)  #TODO: FIX # insert our Weight Matrix to W
-                gradX = self.drop(gradX)
-                dxn = self.finalDoubleLayer(gradX, self.KN1[i], self.KN2[i])
-                dxn = self.edgeDiv(dxn)
+        x = torch.transpose(x, 1,2)         # x = [B,C,N]
 
-                tmp_xn = xn.clone()
-                beta = F.sigmoid(self.alpha)
-                alpha = 1 - beta
-                alpha = alpha / self.h
-                beta = beta / (self.h ** 2)
+        xn = F.dropout(x, p=self.dropout)
+        xn = self.singleLayer(xn, self.K1Nopen)  # First Layer
+        x0 = xn.clone()
+        xn_old = x0
+        first_flag = True
+        for i in range(self.num_layers):
+            Wi = self._modules['layer_w{}'.format(i)](xn, W_init,first_flag)  #changed
+            first_flag = False
+            #print("Wi.size: ", Wi.size())
+            #print("Wi: ", Wi[0,:,:,1])
 
-                xn = (2 * beta * xn - beta * xn_old + alpha * xn - dxn) / (beta + alpha)
-                xn_old = tmp_xn
+            gradX = self.nodeGrad(xn, W=Wi)  #TODO: FIX # insert our Weight Matrix to W
+            gradX = F.dropout(gradX, p=self.dropout)
+            dxn = self.finalDoubleLayer(gradX, self.KN1[i], self.KN2[i])
+            dxn = self.edgeDiv(dxn,Wi)
 
-            xn = F.dropout(xn, p=self.dropout, training=self.training)
-            xn = F.conv1d(xn, self.KNclose.unsqueeze(-1))
+            tmp_xn = xn.clone()
+            beta = F.sigmoid(self.alpha)
+            alpha = 1 - beta
+            alpha = alpha / self.h
+            beta = beta / (self.h ** 2)
 
-            xn = xn.squeeze().t()
+            xn = (2 * beta * xn - beta * xn_old + alpha * xn - dxn) / (beta + alpha)
+            xn_old = tmp_xn
 
-            Wl = self.w_comp_last(xn, W_init)  #changed
-            #print("Wl.size", Wl.size())
-            #print("Wl: ", Wl[0,:,:,1])
-            out = self.layer_last([Wl, xn])[1]  #changed # TODO: FIX
-            #print("out.size", out.size())
-            #print("this is the x before sending to models")
-            #print(x_next)
+        out = F.dropout(xn, p=self.dropout, training=self.training)
+        out = F.conv1d(out, self.KNclose.unsqueeze(-1))
 
-            return out[:, 0, :], xn, Wl
+        out = torch.transpose(out.squeeze(),1,2)
+
+        Wl = self.w_comp_last(out, W_init)  #changed
+        #print("Wl.size", Wl.size())
+        #print("Wl: ", Wl[0,:,:,1])
+        # out = self.layer_last([Wl, xn])[1]  #changed # TODO: FIX
+        #print("out.size", out.size())
+        #print("this is the x before sending to models")
+        #print(x_next)
+
+        # F.log_softmax(xn, dim=1) # PDE-GCN PAPER RETURN
+
+        # return out[:, 0, :], xn, Wl
+
+        return out[:, 0, :], xn, Wl
 
 
 
@@ -307,8 +333,15 @@ class Wcompute(nn.Module):
         self.conv2d_last = nn.Conv2d(nf, num_operators, 1, stride=1)
         self.activation = activation
 
-    def forward(self, x, W_id):
-        W1 = x.unsqueeze(2)
+    def forward(self, x, W_id, first_run=True):
+        if first_run:
+            x = torch.transpose(x, 1,2)
+            W1 = x.unsqueeze(2)
+
+        else:
+            x = torch.transpose(x, 1,2)
+            W1 = x.unsqueeze(1)
+
         W2 = torch.transpose(W1, 1, 2) #size: bs x N x N x num_features
         W_new = torch.abs(W1 - W2) #size: bs x N x N x num_features
         W_new = torch.transpose(W_new, 1, 3) #size: bs x num_features x N x N
@@ -416,7 +449,7 @@ class GNN_nl_omniglot(nn.Module): # Todo: Change name to Naive and uncomment Reg
         # if self.args.cuda:
         #    x_next = x_next.cuda()
 
-        Wl = self.w_comp_last(x_next, W_init)  #changed
+        Wl = self.w_comp_last(x_next, W_init, False)  #changed
         #print("Wl.size", Wl.size())
         #print("Wl: ", Wl[0,:,:,1])
         out = self.layer_last([Wl, x_next])[1]  #changed
@@ -677,10 +710,11 @@ class GNN_active(nn.Module):
 
 if __name__ == '__main__':
     # test modules
-    bs =  4
+    num_features = 64
+    bs =  50
     nf = 10
     num_layers = 5
-    N = 8
+    N = 5
     x = torch.ones((bs, N, nf))
     W1 = torch.eye(N).unsqueeze(0).unsqueeze(-1).expand(bs, N, N, 1)
     W2 = torch.ones(N).unsqueeze(0).unsqueeze(-1).expand(bs, N, N, 1)
@@ -702,5 +736,68 @@ if __name__ == '__main__':
     # gnn = GNN(num_features, num_layers, J)
     # out = gnn(input)
     # print(out.size())
+    import argparse
+
+    parser = argparse.ArgumentParser(description='Few-Shot Learning with Graph Neural Networks')
+    parser.add_argument('--exp_name', type=str, default='debug_vx', metavar='N', help='Name of the experiment')
+    parser.add_argument('--batch_size', type=int, default=50, metavar='batch_size', help='Size of batch)')
+    parser.add_argument('--batch_size_test', type=int, default=50, metavar='batch_size', help='Size of batch)')
+    # parser.add_argument('--batch_size', type=int, default=10, metavar='batch_size',
+    #                     help='Size of batch)')
+    # parser.add_argument('--batch_size_test', type=int, default=10, metavar='batch_size',
+    #                     help='Size of batch)')
+    parser.add_argument('--iterations', type=int, default=2500, metavar='N', help='number of epochs to train ')
+    # parser.add_argument('--decay_interval', type=int, default=10000, metavar='N',
+    #                     help='Learning rate decay interval')
+    parser.add_argument('--decay_interval', type=int, default=10000, metavar='N', help='Learning rate decay interval')
+    parser.add_argument('--lr', type=float, default=0.001, metavar='LR',
+                        help='learning rate (default: 0.01)')  # LR for Omniglot
+    # parser.add_argument('--lr', type=float, default=0.2, metavar='LR',
+    #                     help='learning rate (default: 0.01)') # LR for MiniImagenet
+    parser.add_argument('--momentum', type=float, default=0.5, metavar='M', help='SGD momentum (default: 0.5)')
+    parser.add_argument('--no-cuda', action='store_true', default=False, help='enables CUDA training')
+    parser.add_argument('--seed', type=int, default=1, metavar='S', help='random seed (default: 1)')
+    parser.add_argument('--log-interval', type=int, default=50, metavar='N',
+                        help='how many batches to wait before logging training status')
+    parser.add_argument('--save_interval', type=int, default=300000, metavar='N',
+                        help='how many batches between each model saving')
+    parser.add_argument('--test_interval', type=int, default=250, metavar='N',
+                        help='how many batches between each test')
+    parser.add_argument('--test_N_way', type=int, default=5, metavar='N',
+                        help='Number of classes for doing each classification run')
+    parser.add_argument('--train_N_way', type=int, default=5, metavar='N',
+                        help='Number of classes for doing each training comparison')
+    parser.add_argument('--test_N_shots', type=int, default=1, metavar='N', help='Number of shots in test')
+    parser.add_argument('--train_N_shots', type=int, default=1, metavar='N', help='Number of shots when training')
+    parser.add_argument('--unlabeled_extra', type=int, default=0, metavar='N', help='Number of shots when training')
+    parser.add_argument('--metric_network', type=str, default='gnn_iclr_nl', metavar='N',
+                        help='gnn_iclr_nl' + 'gnn_iclr_active')
+    parser.add_argument('--active_random', type=int, default=0, metavar='N', help='random active ? ')
+    parser.add_argument('--dataset_root', type=str, default='datasets', metavar='N', help='Root dataset')
+    parser.add_argument('--test_samples', type=int, default=30000, metavar='N', help='Number of shots')
+    # parser.add_argument('--dataset', type=str, default='mini_imagenet', metavar='N',
+    #                     help='omniglot')
+    parser.add_argument('--dataset', type=str, default='omniglot', metavar='N', help='omniglot')
+    # parser.add_argument('--dec_lr', type=int, default=10000, metavar='N',
+    #                     help='Decreasing the learning rate every x iterations')
+    # parser.add_argument('--dec_lr', type=int, default=1000, metavar='N',
+    #                     help='Decreasing the learning rate every x iterations')
+    parser.add_argument('--dec_lr', type=int, default=10000, metavar='N',
+                        help='Decreasing the learning rate every x iterations')
+    args = parser.parse_args(args=[])
+    args.cuda = not args.no_cuda and torch.cuda.is_available()
+
+    ######################## test PDE-GCN ##############################
+    bs = 10
+    N = 5
+    num_features = 64
+
+    x = torch.ones((bs, N, num_features))
+
+    input = Variable(x)
+    gnn = PDE_GCN(args, num_features, 10, J)
+    out = gnn(input)
+    print(out[0].size())
 
 
+# D/torch.permute(torch.std(D, (1,2)).repeat(5,5,1),(2,0,1)) # TODO: For Renana
