@@ -223,9 +223,11 @@ def train():
                                                                   test_samples=test_samples * 5, partition='val')
             test_acc_aux, accur_arr2, dirichle = test_one_shot(args, model=[enc_nn, metric_nn, softmax_module],
                                                                test_samples=test_samples * 5, partition='test')
-            #accuracy_array_total10 = np.append(accuracy_array_total10, accur_arr2)
+            print("accuracy")
+            accuracy_array_total10 = np.append(accuracy_array_total10, accur_arr2)
+            print(accuracy_array_total10)
             print('dirichle')
-            #print(accuracy_array_total10)
+
             #Tensor.cpu(dirichle)
 
             #dirichle = Tensor.numpy(dirichle)
