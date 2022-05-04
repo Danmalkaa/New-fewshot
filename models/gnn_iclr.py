@@ -224,7 +224,7 @@ class PDE_GCN(nn.Module): #
 
         self.K1Nopen = nn.Parameter(torch.randn(input_features, input_features) * stdv)
         self.K2Nopen = nn.Parameter(torch.randn(input_features, input_features) * stdv)
-        self.KNclose = nn.Parameter(torch.randn(args.train_N_way , input_features) * stdv)  # num_output on left size
+        self.KNclose = nn.Parameter(torch.randn(args.train_N_way * args.train_N_shots + 1 , input_features) * stdv)  # num_output on left size
 
         self.KN1 = nn.Parameter(torch.rand(self.num_layers, input_features, input_features) * stdvp)
         rrnd = torch.rand(self.num_layers, input_features, input_features) * (1e-2) # TODO: Change to random 1e-3
