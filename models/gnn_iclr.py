@@ -218,7 +218,8 @@ class PDE_GCN(nn.Module): #
         self.num_layers = 2  # TODO: change to 2 - here we change the number of layers
 
         self.dropout = 0.01 # TODO: Change
-        self.h = 0.8 # TODO: Change to random
+        self.h = nn.Parameter(torch.Tensor([0.1])) # Our Change
+
         stdv = 1e-1 # TODO: Change to  1e-2
         stdvp = 1e-1 # TODO: Change to  1e-2
 
