@@ -215,10 +215,10 @@ class PDE_GCN(nn.Module): #
         self.input_features = input_features
         self.nf = nf
         self.J = J
-        self.num_layers = 4  # TODO: change to 2 - here we change the number of layers
+        self.num_layers = 2  # TODO: change to 2 - here we change the number of layers
 
         self.dropout = 0.01 # TODO: Change
-        self.h = 0.1 # TODO: Change to random
+        self.h = 0.8 # TODO: Change to random
         stdv = 1e-1 # TODO: Change to  1e-2
         stdvp = 1e-1 # TODO: Change to  1e-2
 

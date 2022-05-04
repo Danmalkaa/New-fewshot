@@ -32,7 +32,7 @@ parser.add_argument('--iterations', type=int, default=2500, metavar='N',
 #                     help='Learning rate decay interval')
 parser.add_argument('--decay_interval', type=int, default=10000, metavar='N',
                     help='Learning rate decay interval')
-parser.add_argument('--lr', type=float, default=0.01, metavar='LR',
+parser.add_argument('--lr', type=float, default=0.001, metavar='LR',
                     help='learning rate (default: 0.01)') # LR for Omniglot
 # parser.add_argument('--lr', type=float, default=0.2, metavar='LR',
 #                     help='learning rate (default: 0.01)') # LR for MiniImagenet
