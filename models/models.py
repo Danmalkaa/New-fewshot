@@ -141,6 +141,9 @@ class MetricNN(nn.Module):
         #print(x_next)
 
         outputs = F.sigmoid(logits)
+        # outputs = F.log_softmax(logits, dim=1) # TODO: remove
+        # outputs = logits # TODO: remove
+
         if with_dirichlet:
             return outputs, logits, x_next, W_for_dirichle
         else:

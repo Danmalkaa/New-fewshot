@@ -12,6 +12,8 @@ import models.models as models
 from test import test_one_shot
 import numpy as np
 
+torch.autograd.set_detect_anomaly(True) # TODO: REMOVE
+
 # Training settings
 parser = argparse.ArgumentParser(description='Few-Shot Learning with Graph Neural Networks')
 parser.add_argument('--exp_name', type=str, default='debug_vx', metavar='N',
@@ -30,7 +32,7 @@ parser.add_argument('--iterations', type=int, default=2500, metavar='N',
 #                     help='Learning rate decay interval')
 parser.add_argument('--decay_interval', type=int, default=10000, metavar='N',
                     help='Learning rate decay interval')
-parser.add_argument('--lr', type=float, default=0.001, metavar='LR',
+parser.add_argument('--lr', type=float, default=0.01, metavar='LR',
                     help='learning rate (default: 0.01)') # LR for Omniglot
 # parser.add_argument('--lr', type=float, default=0.2, metavar='LR',
 #                     help='learning rate (default: 0.01)') # LR for MiniImagenet
@@ -44,7 +46,7 @@ parser.add_argument('--log-interval', type=int, default=50, metavar='N',
                     help='how many batches to wait before logging training status')
 parser.add_argument('--save_interval', type=int, default=300000, metavar='N',
                     help='how many batches between each model saving')
-parser.add_argument('--test_interval', type=int, default=250, metavar='N',
+parser.add_argument('--test_interval', type=int, default=1000, metavar='N',
                     help='how many batches between each test')
 parser.add_argument('--test_N_way', type=int, default=5, metavar='N',
                     help='Number of classes for doing each classification run')

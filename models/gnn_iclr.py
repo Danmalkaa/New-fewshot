@@ -74,11 +74,60 @@ else:
 #
 #
 #         return W, x
+class Wcompute_pde(nn.Module):
+    def __init__(self, input_features, nf, operator='J2', activation='softmax', ratio=[2,2,1,1], num_operators=1, drop=False):
+        super(Wcompute_pde, self).__init__()
+        self.num_features = nf
+        self.operator = operator
+        self.activation = activation
 
-    def identityInit(tensor):
-        I = torch.eye(tensor.shape[1], tensor.shape[2]).unsqueeze(0)
-        II = torch.repeat_interleave(I, repeats=tensor.shape[0], dim=0)
-        return II
+    def forward(self, features, W_id, first_run=True):
+        features = features.squeeze()
+        features = torch.transpose(features, 1,2)
+        D = torch.relu(torch.sum(features ** 2, dim=2, keepdim=True) + torch.transpose(torch.sum(features ** 2, dim=2,
+                       keepdim = True), 1, 2) - 2 * features @ torch.transpose(features, 1, 2))
+        D_std = torch.permute(torch.std(D, (1, 2)).repeat(6, 6, 1), (2, 0, 1)) #std for every 5x5 matrix, repeat and permute to have the same dimentions as D [50,5,5]
+        D = D / D_std
+        D = torch.exp(-2 * D)
+        W_new = D.unsqueeze(3)
+        W_new = W_new.contiguous()
+
+        if self.activation == 'softmax':
+         #   print("W new size in softmax:", W_new.size())
+         #   print("W id size in softmax:", W_id.size())
+            W_new = W_new - W_id.expand_as(W_new) * 1e1 # TODO: change back to 1e8
+            W_new = torch.transpose(W_new, 2, 3)
+            # Applying Softmax
+            W_new = W_new.contiguous()
+            W_new_size = W_new.size()
+            W_new = W_new.view(-1, W_new.size(3))
+            # W_new = F.softmax(W_new) # TODO: Uncomment
+            W_new = W_new.view(W_new_size)
+            # Softmax applied
+            W_new = torch.transpose(W_new, 2, 3)
+
+        elif self.activation == 'sigmoid':
+            W_new = F.sigmoid(W_new)
+            W_new *= (1 - W_id)
+        elif self.activation == 'none':
+            W_new *= (1 - W_id)
+        else:
+            raise (NotImplementedError)
+
+        if self.operator == 'laplace':
+            W_new = W_id - W_new
+        elif self.operator == 'J2':
+            W_new = torch.cat([W_id, W_new], 3)
+        else:
+            raise(NotImplementedError)
+
+        return W_new
+
+
+def identityInit(tensor):
+    I = torch.eye(tensor.shape[1], tensor.shape[2]).unsqueeze(0)
+    II = torch.repeat_interleave(I, repeats=tensor.shape[0], dim=0)
+    return II
 
 class PDE_GCN(nn.Module): #
 
@@ -166,19 +215,19 @@ class PDE_GCN(nn.Module): #
         self.input_features = input_features
         self.nf = nf
         self.J = J
-        self.num_layers = 6  # TODO: change to 2 - here we change the number of layers
+        self.num_layers = 4  # TODO: change to 2 - here we change the number of layers
 
-        self.dropout = 0.3 # TODO: Change
-        self.h = torch.rand(1)
-        stdv = 1e-2
-        stdvp = 1e-2
+        self.dropout = 0.01 # TODO: Change
+        self.h = 0.1 # TODO: Change to random
+        stdv = 1e-1 # TODO: Change to  1e-2
+        stdvp = 1e-1 # TODO: Change to  1e-2
 
         self.K1Nopen = nn.Parameter(torch.randn(input_features, input_features) * stdv)
         self.K2Nopen = nn.Parameter(torch.randn(input_features, input_features) * stdv)
-        self.KNclose = nn.Parameter(torch.randn(args.train_N_way * args.train_N_shots + 1 , input_features) * stdv)  # num_output on left size
+        self.KNclose = nn.Parameter(torch.randn(args.train_N_way , input_features) * stdv)  # num_output on left size
 
         self.KN1 = nn.Parameter(torch.rand(self.num_layers, input_features, input_features) * stdvp)
-        rrnd = torch.rand(self.num_layers, input_features, input_features) * (1e-3)
+        rrnd = torch.rand(self.num_layers, input_features, input_features) * (1e-2) # TODO: Change to random 1e-3
         self.KN1 = nn.Parameter(identityInit(self.KN1) + rrnd)
 
         self.alpha = nn.Parameter(-0 * torch.ones(1, 1))
@@ -194,7 +243,7 @@ class PDE_GCN(nn.Module): #
             # else:
             #     flag1 = 1
             #     flag2 = 0
-            module_w = Wcompute(flag1 * self.input_features + flag2 * int(nf / 2),
+            module_w = Wcompute_pde(flag1 * self.input_features + flag2 * int(nf / 2),
                                 flag1 * self.input_features + flag2 * int(nf / 2), operator='J2', activation='softmax',
                                 ratio=[2, 1.5, 1, 1], drop=False)
             # module_l = Gconv(flag1 * self.input_features + int(nf / 2) * flag2, int(nf / 2), 2)  #changed
@@ -205,7 +254,7 @@ class PDE_GCN(nn.Module): #
         #                           self.input_features + int(self.nf / 2) * (self.num_layers - 1), #changed
         #                          operator='J2', activation='softmax', ratio=[2, 1.5, 1, 1], drop=True)
         #self.layer_last = Gconv(self.input_features + int(self.nf / 2) * self.num_layers, args.train_N_way, 2, bn_bool=True) #changed
-        self.w_comp_last = Wcompute(int(self.nf / 2)+1,  #this is the last layer without concatenating
+        self.w_comp_last = Wcompute_pde(int(self.nf / 2)+1,  #this is the last layer without concatenating
                                     int(self.nf / 2)+1,  #changed
                                     operator='J2', activation='softmax', ratio=[2, 1.5, 1, 1], drop=True)
         # self.layer_last = Gconv(int(self.nf / 2), args.train_N_way, 2, bn_bool=True)  #changed
