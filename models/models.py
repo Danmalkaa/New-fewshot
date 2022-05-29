@@ -110,7 +110,9 @@ class MetricNN(nn.Module):
             assert(self.args.train_N_way == self.args.test_N_way)
             num_inputs = self.emb_size + self.args.train_N_way
             if self.args.dataset == 'mini_imagenet':
-                self.gnn_obj = gnn_iclr.GNN_nl(args, num_inputs, nf=96, J=1)
+#                 self.gnn_obj = gnn_iclr.GNN_nl(args, num_inputs, nf=96, J=1)
+                self.gnn_obj = gnn_iclr.PDE_GCN(args, num_inputs, nf=10, J=1)
+
             elif 'omniglot' in self.args.dataset:
                 # self.gnn_obj = gnn_iclr.GNN_nl_omniglot(args, num_inputs, nf=96, J=1)
                 self.gnn_obj = gnn_iclr.PDE_GCN(args, num_inputs, nf=10, J=1)
