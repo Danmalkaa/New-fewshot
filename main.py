@@ -147,9 +147,9 @@ def train():
     io.cprint(str(metric_nn))
 
     weight_decay = 0
-    if args.dataset == 'mini_imagenet':
-        print('Weight decay ' + str(1e-6))
-        weight_decay = 1e-6
+    if args.dataset == 'mini_imagenet':  #TODO: change back to 1e-6
+        print('Weight decay ' + str(1e-5))
+        weight_decay = 1e-5
     opt_enc_nn = optim.Adam(enc_nn.parameters(), lr=args.lr, weight_decay=weight_decay)
     opt_metric_nn = optim.Adam(metric_nn.parameters(), lr=args.lr, weight_decay=weight_decay)
 
