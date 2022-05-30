@@ -12,7 +12,7 @@ import models.models as models
 from test import test_one_shot
 import numpy as np
 
-torch.autograd.set_detect_anomaly(True) # TODO: REMOVE
+# torch.autograd.set_detect_anomaly(True) # TODO: REMOVE
 
 # Training settings
 parser = argparse.ArgumentParser(description='Few-Shot Learning with Graph Neural Networks')
