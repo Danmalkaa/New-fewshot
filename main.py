@@ -231,8 +231,9 @@ def train():
             #Tensor.cpu(dirichle)
 
             #dirichle = Tensor.numpy(dirichle)
-            dirichle_array = np.append(dirichle_array, dirichle)
-            io.cprint(dirichle_array)
+            if batch_idx != 20:
+              dirichle_array = np.append(dirichle_array, dirichle)
+              io.cprint(dirichle_array)
             #dirichle_series_2 = pd.Series(dirichle_array)
             #dirichle_df = pd.DataFrame(iter_array, dirichle_series_2)
             #dirichle_df.to_csv("dirichlet energy.csv", index = False)
