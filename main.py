@@ -223,16 +223,16 @@ def train():
                                                                   test_samples=test_samples * 5, partition='val')
             test_acc_aux, accur_arr2, dirichle = test_one_shot(args, model=[enc_nn, metric_nn, softmax_module],
                                                                test_samples=test_samples * 5, partition='test')
-            print("accuracy")
+            io.cprint("accuracy")
             accuracy_array_total10 = np.append(accuracy_array_total10, accur_arr2)
-            print(accuracy_array_total10)
-            print('dirichle')
+            io.cprint(accuracy_array_total10)
+            io.cprint('dirichle')
 
             #Tensor.cpu(dirichle)
 
             #dirichle = Tensor.numpy(dirichle)
             dirichle_array = np.append(dirichle_array, dirichle)
-            print(dirichle_array)
+            io.cprint(dirichle_array)
             #dirichle_series_2 = pd.Series(dirichle_array)
             #dirichle_df = pd.DataFrame(iter_array, dirichle_series_2)
             #dirichle_df.to_csv("dirichlet energy.csv", index = False)
