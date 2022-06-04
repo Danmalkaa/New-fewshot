@@ -70,12 +70,12 @@ class EmbeddingImagenet(nn.Module):
         # Input 20x20x96
         self.conv3 = nn.Conv2d(int(self.ndf*1.5), self.ndf*2, kernel_size=3, padding=1, bias=True)
         self.bn3 = nn.BatchNorm2d(self.ndf*2)
-        self.drop_3 = nn.Dropout2d(0.1)
+        self.drop_3 = nn.Dropout2d(0.4)
 
         # Input 10x10x128
         self.conv4 = nn.Conv2d(self.ndf*2, self.ndf*4, kernel_size=3, padding=1, bias=True)
         self.bn4 = nn.BatchNorm2d(self.ndf*4)
-        self.drop_4 = nn.Dropout2d(0.1)
+        self.drop_4 = nn.Dropout2d(0.5)
 
         # Input 5x5x256
         self.fc1 = nn.Linear(self.ndf*4*5*5, self.emb_size, bias=True)
