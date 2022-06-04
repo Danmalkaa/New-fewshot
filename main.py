@@ -32,10 +32,10 @@ parser.add_argument('--iterations', type=int, default=500000, metavar='N',
 #                     help='Learning rate decay interval')
 parser.add_argument('--decay_interval', type=int, default=10000, metavar='N',
                     help='Learning rate decay interval')
-parser.add_argument('--lr', type=float, default=0.001, metavar='LR',
-                    help='learning rate (default: 0.01)') # LR for Omniglot
-# parser.add_argument('--lr', type=float, default=0.01, metavar='LR',
-#                     help='learning rate (default: 0.01)') # LR for MiniImagenet
+# parser.add_argument('--lr', type=float, default=0.001, metavar='LR',
+#                     help='learning rate (default: 0.01)') # LR for Omniglot
+parser.add_argument('--lr', type=float, default=0.02, metavar='LR',
+                    help='learning rate (default: 0.01)') # LR for MiniImagenet
 parser.add_argument('--momentum', type=float, default=0.5, metavar='M',
                     help='SGD momentum (default: 0.5)')
 parser.add_argument('--no-cuda', action='store_true', default=False,
@@ -74,7 +74,7 @@ parser.add_argument('--dataset', type=str, default='mini_imagenet', metavar='N',
 #                     help='Decreasing the learning rate every x iterations')
 # parser.add_argument('--dec_lr', type=int, default=1000, metavar='N',
 #                     help='Decreasing the learning rate every x iterations')
-parser.add_argument('--dec_lr', type=int, default=15000, metavar='N',
+parser.add_argument('--dec_lr', type=int, default=30000, metavar='N',
                     help='Decreasing the learning rate every x iterations')
 args = parser.parse_args(args=[])
 
