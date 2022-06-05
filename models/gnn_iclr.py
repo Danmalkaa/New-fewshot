@@ -217,7 +217,7 @@ class PDE_GCN(nn.Module): #
         self.J = J
         self.num_layers = 10  # TODO: change to 2 - here we change the number of layers
 
-        self.dropout = 0.45 # TODO: Change
+        self.dropout = 0.25 # TODO: Change
         self.h = nn.Parameter(torch.Tensor([0.1])) # Our Change
 
         stdv = 1e-1 # TODO: Change to  1e-2
