@@ -215,7 +215,7 @@ class PDE_GCN(nn.Module): #
         self.input_features = input_features
         self.nf = nf
         self.J = J
-        self.num_layers = 10  # TODO: change to 2 - here we change the number of layers
+        self.num_layers = 9  # TODO: change to 2 - here we change the number of layers
 
         self.dropout = 0.01 # TODO: Change
         self.h = nn.Parameter(torch.Tensor([0.1])) # Our Change
@@ -279,6 +279,7 @@ class PDE_GCN(nn.Module): #
         xn_old = x0
         first_flag = True
         for i in range(self.num_layers):
+          if i % 3 == 0:
             Wi = self._modules['layer_w{}'.format(i)](xn, W_init,first_flag)  #changed
             first_flag = False
             #print("Wi.size: ", Wi.size())
@@ -295,8 +296,33 @@ class PDE_GCN(nn.Module): #
             alpha = alpha / self.h
             beta = beta / (self.h ** 2)
 
-            xn = (2 * beta * xn - beta * xn_old + alpha * xn - dxn) / (beta + alpha)
+            xn = (alpha * xn - 0.5*dxn) / (alpha) # yn+0.5h*k1
+            k1 = xn.clone() # RK-4 k1
             xn_old = tmp_xn
+
+          if i% 3 == 1:
+
+            gradX = self.nodeGrad(xn, W=Wi)  #TODO: FIX # insert our Weight Matrix to W
+            gradX = F.dropout(gradX, p=self.dropout)
+            dxn = self.finalDoubleLayer(gradX, self.KN1[i], self.KN2[i])
+            dxn = self.edgeDiv(dxn,Wi)
+            xn = (alpha * xn_old - 0.5*k1) / (alpha) # yn+0.5h*k2
+            k2 = xn.clone() # RK-4 k2
+            xn = (alpha * xn_old - 0.5*k2) / (alpha) # yn+0.5h*k2
+            k3 = xn.clone()
+
+
+          if i% 3 == 2:
+            gradX = self.nodeGrad(xn, W=Wi)  #TODO: FIX # insert our Weight Matrix to W
+            gradX = F.dropout(gradX, p=self.dropout)
+            dxn = self.finalDoubleLayer(gradX, self.KN1[i], self.KN2[i])
+            dxn = self.edgeDiv(dxn,Wi)
+            xn = (alpha * xn - k3) / (alpha) # yn+h*k3  - k4
+
+            k4 = xn.clone() # RK-4 k3
+
+            # xn = (2 * beta * xn - beta * xn_old + alpha * xn - dxn) / (beta + alpha)
+            xn = alpha* xn_old + (1/6)* (k1+2*k2+2*k3+k4) / (alpha)
 
         out = F.dropout(xn, p=self.dropout, training=self.training)
         out = F.conv1d(out, self.KNclose.unsqueeze(-1))
