@@ -260,8 +260,8 @@ def train():
 
 
 def adjust_learning_rate(optimizers, lr, iter):
-    new_lr = lr * (0.5**(int(iter/args.dec_lr)))
-
+#     new_lr = lr * (0.5**(int(iter/args.dec_lr)))
+    new_lr = 0.0001 + 0.5* (0.01 - 0.0001)* (1+ np.cos((iter/args.dec_lr)*np.pi) # TODO: Comment Back
     for optimizer in optimizers:
         for param_group in optimizer.param_groups:
             param_group['lr'] = new_lr
