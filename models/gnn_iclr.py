@@ -30,7 +30,7 @@ class Wcompute_pde(nn.Module):
                        keepdim = True), 1, 2) - 2 * features @ torch.transpose(features, 1, 2))
         D_std = torch.permute(torch.std(D, (1, 2)).repeat(6, 6, 1), (2, 0, 1)) #std for every 5x5 matrix, repeat and permute to have the same dimentions as D [50,5,5]
         D = D / D_std
-        D = torch.exp(-2 * D)
+        D = torch.exp(-0.5 * D) # TODO: Original was -2 * D
         W_new = D.unsqueeze(3)
         W_new = W_new.contiguous()
 
@@ -135,15 +135,15 @@ class PDE_GCN(nn.Module): #
         self.h_pde = nn.Parameter(torch.Tensor([0.1])) # Our Change
         self.gamma = nn.Parameter(torch.Tensor([0.5])) # Our Change
 
-        stdv = 1e-1 # TODO: Change to  1e-2
-        stdvp = 1e-1 # TODO: Change to  1e-2
+        stdv = 1e-3 # TODO: Change to  PDE-GCN worked with 1e-1
+        stdvp = 1e-3 # TODO: Change to  PDE-GCN worked with 1e-1
 
         self.K1Nopen = nn.Parameter(torch.randn(input_features, input_features) * stdv)
         self.K2Nopen = nn.Parameter(torch.randn(input_features, input_features) * stdv)
         self.KNclose = nn.Parameter(torch.randn(args.train_N_way * args.train_N_shots + 1 , input_features) * stdv)  # num_output on left size
 
         self.KN1 = nn.Parameter(torch.rand(self.num_layers, input_features, input_features) * stdvp)
-        rrnd = torch.rand(self.num_layers, input_features, input_features) * (1e-2) # TODO: Change to random 1e-3
+        rrnd = torch.rand(self.num_layers, input_features, input_features) * (1e-4) # TODO: Change to random 1e-3
         self.KN1 = nn.Parameter(identityInit(self.KN1) + rrnd)
 
         self.alpha = nn.Parameter(-0 * torch.ones(1, 1))
