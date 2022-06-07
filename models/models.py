@@ -218,7 +218,7 @@ def create_models(args):
     if 'omniglot' == args.dataset:
         enc_nn = EmbeddingOmniglot(args, 64)
     elif 'mini_imagenet' == args.dataset:
-        enc_nn = EmbeddingImagenet(args, 64) #TODO : change back to 128
+        enc_nn = EmbeddingImagenet(args, 96) #TODO : change back to 128
     else:
         raise NameError('Dataset ' + args.dataset + ' not knows')
     return enc_nn, MetricNN(args, emb_size=enc_nn.emb_size)
