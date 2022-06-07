@@ -18,7 +18,7 @@ import numpy as np
 parser = argparse.ArgumentParser(description='Few-Shot Learning with Graph Neural Networks')
 parser.add_argument('--exp_name', type=str, default='debug_vx', metavar='N',
                     help='Name of the experiment')
-parser.add_argument('--batch_size', type=int, default=50, metavar='batch_size',
+parser.add_argument('--batch_size', type=int, default=100, metavar='batch_size',
                     help='Size of batch)')
 parser.add_argument('--batch_size_test', type=int, default=50, metavar='batch_size',
                     help='Size of batch)')
@@ -46,7 +46,7 @@ parser.add_argument('--log-interval', type=int, default=1000, metavar='N',
                     help='how many batches to wait before logging training status')
 parser.add_argument('--save_interval', type=int, default=100000, metavar='N',
                     help='how many batches between each model saving')
-parser.add_argument('--test_interval', type=int, default=10000, metavar='N',
+parser.add_argument('--test_interval', type=int, default=2000, metavar='N',
                     help='how many batches between each test')
 parser.add_argument('--test_N_way', type=int, default=5, metavar='N',
                     help='Number of classes for doing each classification run')
