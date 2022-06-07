@@ -132,6 +132,7 @@ class PDE_GCN(nn.Module): #
 
         self.dropout = 0.01 # TODO: Change
         self.h = nn.Parameter(torch.Tensor([1.1])) # Our Change
+        self.h_pde = nn.Parameter(torch.Tensor([0.1])) # Our Change
         self.gamma = nn.Parameter(torch.Tensor([0.5])) # Our Change
 
         stdv = 1e-1 # TODO: Change to  1e-2
@@ -176,6 +177,7 @@ class PDE_GCN(nn.Module): #
         xn = F.dropout(x, p=self.dropout)
         xn = self.singleLayer(xn, self.K1Nopen)  # First Layer
         x0 = xn.clone()
+        xn_pde = xn.clone()
         xn_old = x0
         xn_old_pde = x0
         first_flag = True
@@ -194,7 +196,7 @@ class PDE_GCN(nn.Module): #
             beta = F.sigmoid(self.alpha)
             alpha = 1 - beta
             alpha = alpha / self.h
-            beta = beta / (self.h ** 2)
+            beta = beta / (self.h_pde ** 2)
 
             # PDE-GCN
             xn_pde = (2 * beta * xn_pde - beta * xn_old_pde - dxn) / (beta)
@@ -218,7 +220,7 @@ class PDE_GCN(nn.Module): #
             beta = F.sigmoid(self.alpha)
             alpha = 1 - beta
             alpha = alpha / self.h
-            beta = beta / (self.h ** 2)
+            beta = beta / (self.h_pde ** 2)
 
             xn_pde = (2 * beta * xn_pde - beta * xn_old_pde - dxn_pde) / (beta)
             xn_old_pde = tmp_xn_pde
@@ -229,9 +231,9 @@ class PDE_GCN(nn.Module): #
             dxn = self.finalDoubleLayer(gradX, self.KN1[i], self.KN2[i])
             dxn = self.edgeDiv(dxn,Wi)
 
-            xn = (alpha * xn_old - 0.5*k1*dxn) / (alpha) # yn+0.5h*k2
+            xn = (alpha * xn_old - 0.5*k1) / (alpha) # yn+0.5h*k2
             k2 = xn.clone() # RK-4 k2
-            xn = (alpha * xn_old - 0.5*k2*dxn) / (alpha) # yn+0.5h*k2
+            xn = (alpha * xn_old - 0.5*k2) / (alpha) # yn+0.5h*k2
             k3 = xn.clone()
 
 
@@ -246,7 +248,7 @@ class PDE_GCN(nn.Module): #
             beta = F.sigmoid(self.alpha)
             alpha = 1 - beta
             alpha = alpha / self.h
-            beta = beta / (self.h ** 2)
+            beta = beta / (self.h_pde ** 2)
 
             xn_pde = (2 * beta * xn_pde - beta * xn_old_pde - dxn_pde) / (beta)
             xn_old_pde = tmp_xn_pde
@@ -257,7 +259,7 @@ class PDE_GCN(nn.Module): #
             gradX = F.dropout(gradX, p=self.dropout)
             dxn = self.finalDoubleLayer(gradX, self.KN1[i], self.KN2[i])
             dxn = self.edgeDiv(dxn, Wi)
-            xn = (alpha * xn - k3*dxn) / (alpha)  # yn+h*k3  - k4
+            xn = (alpha * xn - k3) / (alpha)  # yn+h*k3  - k4
 
             k4 = xn.clone()  # RK-4 k3
 
