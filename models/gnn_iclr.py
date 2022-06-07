@@ -16,64 +16,6 @@ else:
     dtype_l = torch.cuda.LongTensor
 
 
-
-# class PDE_GCN(nn.Module): # Our GConv
-#     def __init__(self, nf_input, nf_output, J, bn_bool=True):
-#         super(PDE_GCN, self).__init__()
-#         stdv = 1e-2
-#         self.K1Nopen = nn.Parameter(torch.randn(nf_input, nNin) * stdv)
-#         self.K2Nopen = nn.Parameter(torch.randn(nf_input, nf_input) * stdv)
-#         self.KNclose = nn.Parameter(torch.randn(num_output, nopen) * stdv)  # num_output on left size
-#
-#         self.KN1 = nn.Parameter(torch.rand(nlayer, Nfeatures, nhid) * stdvp)
-#         rrnd = torch.rand(nlayer, Nfeatures, nhid) * (1e-3)
-#         self.KN1 = nn.Parameter(identityInit(self.KN1) + rrnd)
-#
-#         self.alpha = nn.Parameter(-0 * torch.ones(1, 1))
-#
-#         self.KN2 = nn.Parameter(torch.rand(nlayer, nhid, 1 * nhid) * stdvp)
-#         self.KN2 = nn.Parameter(identityInit(self.KN2))
-#
-#         self.J = J #TODO:FIX
-#         self.num_inputs = J*nf_input #TODO:FIX
-#         self.num_outputs = nf_output #TODO:FIX
-#         self.fc = nn.Linear(self.num_inputs, self.num_outputs) #TODO:FIX
-#
-#         self.bn_bool = bn_bool #TODO:FIX
-#         if self.bn_bool: #TODO:FIX
-#             self.bn = nn.BatchNorm1d(self.num_outputs) #TODO:FIX
-#
-#     def forward(self, input):
-#         gradX = self.grad(input) #TODO: FIX
-#         gradX = self.drop(gradX)
-#         dxn = self.finalDoubleLayer(gradX, self.KN1[i], self.KN2[i])
-#         dxn = self.edgeDiv(dxn)
-#
-#         tmp_xn = xn.clone()
-#         beta = F.sigmoid(self.alpha)
-#         alpha = 1 - beta
-#         alpha = alpha / self.h
-#         beta = beta / (self.h ** 2)
-#
-#         xn = (2 * beta * xn - beta * xn_old + alpha * xn - dxn) / (beta + alpha)
-#         xn_old = tmp_xn
-#
-#         W = input[0]  #TODO: FIX
-#         x = gmul(input) # out has size (bs, N, num_inputs) #TODO: FIX
-#         #if self.J == 1:
-#         #    x = torch.abs(x)
-#         x_size = x.size() #TODO: FIX
-#         x = x.contiguous() #TODO: FIX
-#         x = x.view(-1, self.num_inputs) #TODO: FIX
-#         x = self.fc(x) # has size (bs*N, num_outputs) #TODO: FIX
-#
-#         if self.bn_bool: #TODO: FIX
-#             x = self.bn(x)
-#
-#         x = x.view(*x_size[:-1], self.num_outputs) #TODO: FIX
-#
-#
-#         return W, x
 class Wcompute_pde(nn.Module):
     def __init__(self, input_features, nf, operator='J2', activation='softmax', ratio=[2,2,1,1], num_operators=1, drop=False):
         super(Wcompute_pde, self).__init__()
@@ -146,33 +88,16 @@ class PDE_GCN(nn.Module): #
         if x.dim() == 2 :
         # no Batch dim
             g = W[:,:,:,1].unsqueeze(1)* (x.unsqueeze(1) - x.unsqueeze(2))
-        # if W.shape[0] == x.shape[2]:
-        #     # if its degree matrix
-        #     g = W[self.iInd] * (x[:, :, self.iInd] - x[:, :, self.jInd])
-        # else:
-        #     g = W * (x[:, :, self.iInd] - x[:, :, self.jInd])
 
-
-        # W2 = torch.transpose(W1, 1, 2) #size: bs x N x N x num_features
-        # W_new = torch.abs(W1 - W2) #size: bs x N x N x num_features
-        # W_new = torch.transpose(W_new, 1, 3) #size: bs x num_features x N x N
         return g
 
     def edgeConv(self, xe, K, groups=1):
-        # if xe.dim() == 4:
-        #     if K.dim() == 2:
-        #         xe = F.conv2d(xe, K.unsqueeze(-1).unsqueeze(-1), groups=groups)
-        #     else:
-        #         xe = conv2(xe, K, groups=groups)
         if xe.dim() == 3:
             if K.dim() == 2:
                 xe = F.conv1d(xe, K.unsqueeze(-1), groups=groups)
-            # else:
-                # xe = conv1(xe, K, groups=groups)
         return xe
 
     def singleLayer(self, x, K, groups=1):
-        # if K.shape[0] != K.shape[1]:
         x = self.edgeConv(x, K, groups=groups)
         x = F.relu(x)
         return x
@@ -180,19 +105,7 @@ class PDE_GCN(nn.Module): #
     def edgeDiv(self, g, W=[]): #TODO - Second LOOK
         if len(W) == 0: # TODO: Decide if W or Ones_MAT
             W = self.W
-        # x = torch.zeros(g.shape[0], g.shape[1], self.nnodes, device=g.device) # [5,64,5]
         x = torch.sum((W[:, :, :, 1].unsqueeze(1) * g), dim=2)    # TODO: Double-Check
-        # z = torch.zeros(g.shape[0],g.shape[1],self.nnodes,device=g.device)
-        # for i in range(self.iInd.numel()):
-        #    x[:,:,self.iInd[i]]  += w*g[:,:,i]
-        # for j in range(self.jInd.numel()):
-        #    x[:,:,self.jInd[j]] -= w*g[:,:,j]
-        # if W.shape[0] != g.shape[2]:
-        #     x.index_add_(2, self.iInd, W[self.iInd] * g)
-        #     x.index_add_(2, self.iInd, W[self.jInd] * g)
-        # else:
-        #     x.index_add_(2, self.iInd, W * g)
-        #     x.index_add_(2, self.jInd, -W * g)
 
         return x
 
@@ -219,6 +132,7 @@ class PDE_GCN(nn.Module): #
 
         self.dropout = 0.01 # TODO: Change
         self.h = nn.Parameter(torch.Tensor([1.1])) # Our Change
+        self.gamma = nn.Parameter(torch.Tensor([0.5])) # Our Change
 
         stdv = 1e-1 # TODO: Change to  1e-2
         stdvp = 1e-1 # TODO: Change to  1e-2
@@ -238,27 +152,13 @@ class PDE_GCN(nn.Module): #
 
         flag1,flag2 = 1, 0
         for i in range(self.num_layers):
-            # if i >= 1:  #changed
-            #     flag1 = 0
-            #     flag2 = 1
-            # else:
-            #     flag1 = 1
-            #     flag2 = 0
             module_w = Wcompute_pde(flag1 * self.input_features + flag2 * int(nf / 2),
                                 flag1 * self.input_features + flag2 * int(nf / 2), operator='J2', activation='softmax',
                                 ratio=[2, 1.5, 1, 1], drop=False)
-            # module_l = Gconv(flag1 * self.input_features + int(nf / 2) * flag2, int(nf / 2), 2)  #changed
             self.add_module('layer_w{}'.format(i), module_w)
-            # self.add_module('layer_l{}'.format(i), module_l)
-
-        #self.w_comp_last = Wcompute(self.input_features + int(self.nf / 2)*self.num_layers,
-        #                           self.input_features + int(self.nf / 2) * (self.num_layers - 1), #changed
-        #                          operator='J2', activation='softmax', ratio=[2, 1.5, 1, 1], drop=True)
-        #self.layer_last = Gconv(self.input_features + int(self.nf / 2) * self.num_layers, args.train_N_way, 2, bn_bool=True) #changed
-        self.w_comp_last = Wcompute_pde(int(self.nf / 2)+1,  #this is the last layer without concatenating
+            self.w_comp_last = Wcompute_pde(int(self.nf / 2)+1,  #this is the last layer without concatenating
                                     int(self.nf / 2)+1,  #changed
                                     operator='J2', activation='softmax', ratio=[2, 1.5, 1, 1], drop=True)
-        # self.layer_last = Gconv(int(self.nf / 2), args.train_N_way, 2, bn_bool=True)  #changed
 
 
 
@@ -277,13 +177,13 @@ class PDE_GCN(nn.Module): #
         xn = self.singleLayer(xn, self.K1Nopen)  # First Layer
         x0 = xn.clone()
         xn_old = x0
+        xn_old_pde = x0
         first_flag = True
         for i in range(self.num_layers):
           if i % 3 == 0:
             Wi = self._modules['layer_w{}'.format(i)](xn, W_init,first_flag)  #changed
             first_flag = False
-            #print("Wi.size: ", Wi.size())
-            #print("Wi: ", Wi[0,:,:,1])
+
 
             gradX = self.nodeGrad(xn, W=Wi)  #TODO: FIX # insert our Weight Matrix to W
             gradX = F.dropout(gradX, p=self.dropout)
@@ -296,33 +196,81 @@ class PDE_GCN(nn.Module): #
             alpha = alpha / self.h
             beta = beta / (self.h ** 2)
 
+            # PDE-GCN
+            xn_pde = (2 * beta * xn_pde - beta * xn_old_pde - dxn) / (beta)
+            xn_old_pde = tmp_xn
+
+
+            # RK-4
             xn = (alpha * xn - 0.5*dxn) / (alpha) # yn+0.5h*k1
             k1 = xn.clone() # RK-4 k1
             xn_old = tmp_xn
 
           if i% 3 == 1:
 
+            # PDE-GCN
+            gradX_pde = self.nodeGrad(xn_pde, W=Wi)  #TODO: FIX # insert our Weight Matrix to W
+            gradX_pde = F.dropout(gradX_pde, p=self.dropout)
+            dxn_pde = self.finalDoubleLayer(gradX_pde, self.KN1[i], self.KN2[i])
+            dxn_pde = self.edgeDiv(dxn_pde,Wi)
+
+            tmp_xn_pde = xn_pde.clone()
+            beta = F.sigmoid(self.alpha)
+            alpha = 1 - beta
+            alpha = alpha / self.h
+            beta = beta / (self.h ** 2)
+
+            xn_pde = (2 * beta * xn_pde - beta * xn_old_pde - dxn_pde) / (beta)
+            xn_old_pde = tmp_xn_pde
+
+            # RK-4
             gradX = self.nodeGrad(xn, W=Wi)  #TODO: FIX # insert our Weight Matrix to W
             gradX = F.dropout(gradX, p=self.dropout)
             dxn = self.finalDoubleLayer(gradX, self.KN1[i], self.KN2[i])
             dxn = self.edgeDiv(dxn,Wi)
-            xn = (alpha * xn_old - 0.5*k1) / (alpha) # yn+0.5h*k2
+
+            xn = (alpha * xn_old - 0.5*k1*dxn) / (alpha) # yn+0.5h*k2
             k2 = xn.clone() # RK-4 k2
-            xn = (alpha * xn_old - 0.5*k2) / (alpha) # yn+0.5h*k2
+            xn = (alpha * xn_old - 0.5*k2*dxn) / (alpha) # yn+0.5h*k2
             k3 = xn.clone()
 
 
           if i% 3 == 2:
+            # PDE-GCN
+            gradX_pde = self.nodeGrad(xn_pde, W=Wi)  #TODO: FIX # insert our Weight Matrix to W
+            gradX_pde = F.dropout(gradX_pde, p=self.dropout)
+            dxn_pde = self.finalDoubleLayer(gradX_pde, self.KN1[i], self.KN2[i])
+            dxn_pde = self.edgeDiv(dxn_pde, Wi)
+
+            tmp_xn_pde = xn_pde.clone()
+            beta = F.sigmoid(self.alpha)
+            alpha = 1 - beta
+            alpha = alpha / self.h
+            beta = beta / (self.h ** 2)
+
+            xn_pde = (2 * beta * xn_pde - beta * xn_old_pde - dxn_pde) / (beta)
+            xn_old_pde = tmp_xn_pde
+
+            # RK 4
+
             gradX = self.nodeGrad(xn, W=Wi)  #TODO: FIX # insert our Weight Matrix to W
             gradX = F.dropout(gradX, p=self.dropout)
             dxn = self.finalDoubleLayer(gradX, self.KN1[i], self.KN2[i])
-            dxn = self.edgeDiv(dxn,Wi)
-            xn = (alpha * xn - k3) / (alpha) # yn+h*k3  - k4
+            dxn = self.edgeDiv(dxn, Wi)
+            xn = (alpha * xn - k3*dxn) / (alpha)  # yn+h*k3  - k4
 
-            k4 = xn.clone() # RK-4 k3
+            k4 = xn.clone()  # RK-4 k3
 
             # xn = (2 * beta * xn - beta * xn_old + alpha * xn - dxn) / (beta + alpha)
-            xn = alpha* xn_old + (1/6)* (k1+2*k2+2*k3+k4) / (alpha)
+            xn = ( alpha * xn_old + (1 / 6) * (k1 + 2 * k2 + 2 * k3 + k4) ) / (alpha)
+            xn = self.gamma * xn + (1-self.gamma) * xn_pde
+
+
+
+
+
+
+
 
         out = F.dropout(xn, p=self.dropout, training=self.training)
         out = F.conv1d(out, self.KNclose.unsqueeze(-1))
@@ -330,16 +278,7 @@ class PDE_GCN(nn.Module): #
         out = torch.transpose(out.squeeze(),1,2)
 
         Wl = self.w_comp_last(out, W_init)  #changed
-        #print("Wl.size", Wl.size())
-        #print("Wl: ", Wl[0,:,:,1])
-        # out = self.layer_last([Wl, xn])[1]  #changed # TODO: FIX
-        #print("out.size", out.size())
-        #print("this is the x before sending to models")
-        #print(x_next)
 
-        # F.log_softmax(xn, dim=1) # PDE-GCN PAPER RETURN
-
-        # return out[:, 0, :], xn, Wl
 
         return out[:, 0, :], xn, Wl
 
