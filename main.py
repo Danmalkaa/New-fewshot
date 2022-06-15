@@ -76,7 +76,7 @@ parser.add_argument('--dataset', type=str, default='mini_imagenet', metavar='N',
 #                     help='Decreasing the learning rate every x iterations')
 # parser.add_argument('--dec_lr', type=int, default=1000, metavar='N',
 #                     help='Decreasing the learning rate every x iterations')
-parser.add_argument('--dec_lr', type=int, default=10000, metavar='N',
+parser.add_argument('--dec_lr', type=int, default=5000, metavar='N',
                     help='Decreasing the learning rate every x iterations')
 args = parser.parse_args(args=[])
 
