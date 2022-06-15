@@ -18,7 +18,7 @@ import numpy as np
 parser = argparse.ArgumentParser(description='Few-Shot Learning with Graph Neural Networks')
 parser.add_argument('--exp_name', type=str, default='debug_vx', metavar='N',
                     help='Name of the experiment')
-parser.add_argument('--batch_size', type=int, default=100, metavar='batch_size',
+parser.add_argument('--batch_size', type=int, default=150, metavar='batch_size',
                     help='Size of batch)')
 parser.add_argument('--batch_size_test', type=int, default=50, metavar='batch_size',
                     help='Size of batch)')
@@ -76,7 +76,7 @@ parser.add_argument('--dataset', type=str, default='mini_imagenet', metavar='N',
 #                     help='Decreasing the learning rate every x iterations')
 # parser.add_argument('--dec_lr', type=int, default=1000, metavar='N',
 #                     help='Decreasing the learning rate every x iterations')
-parser.add_argument('--dec_lr', type=int, default=15000, metavar='N',
+parser.add_argument('--dec_lr', type=int, default=30000, metavar='N',
                     help='Decreasing the learning rate every x iterations')
 args = parser.parse_args(args=[])
 
