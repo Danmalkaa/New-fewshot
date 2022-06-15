@@ -18,7 +18,7 @@ import numpy as np
 parser = argparse.ArgumentParser(description='Few-Shot Learning with Graph Neural Networks')
 parser.add_argument('--exp_name', type=str, default='debug_vx', metavar='N',
                     help='Name of the experiment')
-parser.add_argument('--batch_size', type=int, default=100, metavar='batch_size',
+parser.add_argument('--batch_size', type=int, default=150, metavar='batch_size',
                     help='Size of batch)')
 parser.add_argument('--batch_size_test', type=int, default=50, metavar='batch_size',
                     help='Size of batch)')
@@ -36,7 +36,7 @@ parser.add_argument('--decay_interval', type=int, default=3500, metavar='N',
                     help='Learning rate decay interval')
 # parser.add_argument('--lr', type=float, default=0.001, metavar='LR',
 #                     help='learning rate (default: 0.01)') # LR for Omniglot
-parser.add_argument('--lr', type=float, default=0.001, metavar='LR',
+parser.add_argument('--lr', type=float, default=0.001*np.sqrt(1.5), metavar='LR',
                     help='learning rate (default: 0.01)') # LR for MiniImagenet
 parser.add_argument('--momentum', type=float, default=0.5, metavar='M',
                     help='SGD momentum (default: 0.5)')
