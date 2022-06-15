@@ -28,7 +28,7 @@ parser.add_argument('--metric_nn_layers', type=int, default=9, metavar='metric_n
 #                     help='Size of batch)')
 # parser.add_argument('--batch_size_test', type=int, default=10, metavar='batch_size',
 #                     help='Size of batch)')
-parser.add_argument('--iterations', type=int, default=30000, metavar='N',
+parser.add_argument('--iterations', type=int, default=50000, metavar='N',
                     help='number of epochs to train ')
 # parser.add_argument('--decay_interval', type=int, default=10000, metavar='N',
 #                     help='Learning rate decay interval')
@@ -76,7 +76,7 @@ parser.add_argument('--dataset', type=str, default='mini_imagenet', metavar='N',
 #                     help='Decreasing the learning rate every x iterations')
 # parser.add_argument('--dec_lr', type=int, default=1000, metavar='N',
 #                     help='Decreasing the learning rate every x iterations')
-parser.add_argument('--dec_lr', type=int, default=5000, metavar='N',
+parser.add_argument('--dec_lr', type=int, default=15000, metavar='N',
                     help='Decreasing the learning rate every x iterations')
 args = parser.parse_args(args=[])
 
