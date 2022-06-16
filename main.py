@@ -18,26 +18,26 @@ import numpy as np
 parser = argparse.ArgumentParser(description='Few-Shot Learning with Graph Neural Networks')
 parser.add_argument('--exp_name', type=str, default='debug_vx', metavar='N',
                     help='Name of the experiment')
-parser.add_argument('--batch_size', type=int, default=150, metavar='batch_size',
+parser.add_argument('--batch_size', type=int, default=50, metavar='batch_size',
                     help='Size of batch)')
 parser.add_argument('--batch_size_test', type=int, default=50, metavar='batch_size',
                     help='Size of batch)')
-parser.add_argument('--metric_nn_layers', type=int, default=9, metavar='metric_nn_layers',
+parser.add_argument('--metric_nn_layers', type=int, default=3, metavar='metric_nn_layers',
                     help='Size of batch)')
 # parser.add_argument('--batch_size', type=int, default=10, metavar='batch_size',
 #                     help='Size of batch)')
 # parser.add_argument('--batch_size_test', type=int, default=10, metavar='batch_size',
 #                     help='Size of batch)')
-parser.add_argument('--iterations', type=int, default=50000, metavar='N',
+parser.add_argument('--iterations', type=int, default=2000, metavar='N',
                     help='number of epochs to train ')
 # parser.add_argument('--decay_interval', type=int, default=10000, metavar='N',
 #                     help='Learning rate decay interval')
 parser.add_argument('--decay_interval', type=int, default=3500, metavar='N',
                     help='Learning rate decay interval')
-# parser.add_argument('--lr', type=float, default=0.001, metavar='LR',
-#                     help='learning rate (default: 0.01)') # LR for Omniglot
-parser.add_argument('--lr', type=float, default=0.001*np.sqrt(1.5), metavar='LR',
-                    help='learning rate (default: 0.01)') # LR for MiniImagenet
+parser.add_argument('--lr', type=float, default=0.001, metavar='LR',
+                    help='learning rate (default: 0.01)') # LR for Omniglot
+# parser.add_argument('--lr', type=float, default=0.001*np.sqrt(1.5), metavar='LR',
+#                     help='learning rate (default: 0.01)') # LR for MiniImagenet
 parser.add_argument('--momentum', type=float, default=0.5, metavar='M',
                     help='SGD momentum (default: 0.5)')
 parser.add_argument('--no-cuda', action='store_true', default=False,
@@ -48,7 +48,7 @@ parser.add_argument('--log-interval', type=int, default=50, metavar='N',
                     help='how many batches to wait before logging training status')
 parser.add_argument('--save_interval', type=int, default=100000, metavar='N',
                     help='how many batches between each model saving')
-parser.add_argument('--test_interval', type=int, default=5000, metavar='N',
+parser.add_argument('--test_interval', type=int, default=250, metavar='N',
                     help='how many batches between each test')
 parser.add_argument('--test_N_way', type=int, default=5, metavar='N',
                     help='Number of classes for doing each classification run')
@@ -68,17 +68,18 @@ parser.add_argument('--dataset_root', type=str, default='datasets', metavar='N',
                     help='Root dataset')
 parser.add_argument('--test_samples', type=int, default=30000, metavar='N',
                     help='Number of shots')
-parser.add_argument('--dataset', type=str, default='mini_imagenet', metavar='N',
-                    help='omniglot')
-# parser.add_argument('--dataset', type=str, default='omniglot', metavar='N',
+# parser.add_argument('--dataset', type=str, default='mini_imagenet', metavar='N',
 #                     help='omniglot')
+parser.add_argument('--dataset', type=str, default='omniglot', metavar='N',
+                    help='omniglot')
 # parser.add_argument('--dec_lr', type=int, default=10000, metavar='N',
 #                     help='Decreasing the learning rate every x iterations')
 # parser.add_argument('--dec_lr', type=int, default=1000, metavar='N',
 #                     help='Decreasing the learning rate every x iterations')
 parser.add_argument('--dec_lr', type=int, default=30000, metavar='N',
                     help='Decreasing the learning rate every x iterations')
-args = parser.parse_args(args=[])
+# args = parser.parse_args(args=[])
+args = parser.parse_args()
 
 
 def _init_():
